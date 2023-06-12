@@ -1,0 +1,31 @@
+@font-face {
+	font-family: arkhip;
+	src: url(./assets/fonts/arkhip_font.ttf);
+}
+
+
+* {
+	padding: 0;
+	margin: 0;
+}
+
+body {
+	color: #eeeeee;
+	background: #222222;
+}
+
+canvas-layers {
+	width: 100vw;
+	height: 100vh;
+	background: #333333;
+}
+
+.editor {
+	width: 90%;
+	height: 100%;
+	opacity: 0.1;
+	transition: opacity 200ms ease-out;
+}
+.editor:hover {
+	opacity: 1;
+}
