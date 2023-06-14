@@ -7,12 +7,14 @@ import { KeyboardInputInterceptor } from '@ver/KeyboardInputInterceptor';
 import { KeymapperOfActions, MappingsMode } from '@ver/KeymapperOfActions';
 import { MotionByTouch } from '@/modules/MotionByTouch';
 
+import { GenomeExecutionManager } from './game/GenomeExecutionManager';
+
 import { Node } from '@/scenes/Node';
 import { TileMap } from '@/scenes/nodes/TileMap';
 import { Popup, PopupContainer } from '@/scenes/nodes/Popup';
 import { World } from './game/World';
-import { ProgramsExecutor, ProgrammableCell } from './game/ProgrammExecutor';
 import { WallCell } from './game/WallCell';
+import { ProgrammableCell } from './game/ProgrammableCell';
 
 import { GridMap } from '@/scenes/gui/GridMap';
 import { SystemInfo } from '@/scenes/gui/SystemInfo';
@@ -85,7 +87,7 @@ export class MainScene extends Node {
 
 
 	private editor!: monaco.editor.IStandaloneCodeEditor;
-	private programs_executor = new ProgramsExecutor();
+	private genome_execution_manager = new GenomeExecutionManager<ProgrammableCell>();
 
 	protected async _init(this: MainScene): Promise<void> {
 		await super._init();
@@ -169,7 +171,6 @@ export class MainScene extends Node {
 		const addProgrammableCellToWorld = (code: string, v: Vector2, dir: number) => {
 			const o = new ProgrammableCell();
 			o.name += Math.random();
-			o.isPickupable = false;
 
 			return o.init().then(() => {
 				o.cellpos.set(v);
@@ -180,8 +181,11 @@ export class MainScene extends Node {
 				o.on('api:budoff', o => {
 					addProgrammableCellToWorld(this.editor.getValue(), o.cellpos.buf(), o.celldir+4);
 				});
+				o.on('api:dead', o => {
+					this.$world.removeChild(o.name);
+				});
 
-				this.programs_executor.add(o, code);
+				this.genome_execution_manager.add(o, code);
 			});
 		}
 
@@ -196,7 +200,6 @@ export class MainScene extends Node {
 
 				const o = new WallCell();
 				o.name += i;
-				o.isPickupable = false;
 
 				o.init().then(() => {
 					o.cellpos.set(x, y);
@@ -206,7 +209,7 @@ export class MainScene extends Node {
 		}
 
 
-		this.programs_executor.t = 500;
+		this.genome_execution_manager.t = 500;
 
 		const $btnStart = document.createElement('button');
 		$btnStart.className = 'start';
@@ -214,20 +217,20 @@ export class MainScene extends Node {
 		canvas.append($btnStart);
 
 		$btnStart.onclick = () => {
-			if(!this.programs_executor.isStarted) {
+			if(!this.genome_execution_manager.isStarted) {
 				addProgrammableCellToWorld(this.editor.getValue(), new Vector2(8, 8), 2).then(() => {
-					this.programs_executor.start();
+					this.genome_execution_manager.start();
 				});
 			}
 
-			$btnStart.onclick = () => this.programs_executor[this.programs_executor.isStarted ? 'stop' : 'start']();
+			$btnStart.onclick = () => this.genome_execution_manager[this.genome_execution_manager.isStarted ? 'stop' : 'start']();
 		};
 
-		this.programs_executor.on('start', () => {
+		this.genome_execution_manager.on('start', () => {
 			$btnStart.textContent = 'paused';
 			this.editor.updateOptions({ readOnly: true });
 		});
-		this.programs_executor.on('stop', () => {
+		this.genome_execution_manager.on('stop', () => {
 			$btnStart.textContent = 'resume';
 			this.editor.updateOptions({ readOnly: false });
 		});
@@ -238,8 +241,7 @@ export class MainScene extends Node {
 
 		this.keymapperOfActions.update(dt);
 
-		// gm.viewport.position.moveTime(new Vector2(200, 200), 10);
-		// gm.camera.process(dt, touches);
+		gm.viewport.position.moveTime(new Vector2(200, 200), 10);
 
 		this.$textdata.text = 'DATE: '+this.$world.date.getTimeString();
 	}

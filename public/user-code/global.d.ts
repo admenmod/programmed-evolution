@@ -14,3 +14,4 @@ declare const around: [string, string, string, string, string, string, string, s
 declare function lookAround(): Generator<string, void, never>;
 
 declare function budoff(): Generator<string, void, never>;
+declare function selfKill(): Generator<string, void, never>;

@@ -1,7 +1,6 @@
 import { Vector2 } from '@ver/Vector2';
 import { Event } from '@ver/events';
 import { roundLoop } from '@ver/helpers';
-import type { Viewport } from '@ver/Viewport';
 
 import { Date } from '@/modules/Date';
 import { Node } from '@/scenes/Node';
@@ -9,11 +8,14 @@ import { Node2D } from '@/scenes/nodes/Node2D';
 
 
 export class World extends Node {
+	public '@start' = new Event<World, []>(this);
+	public '@stop' = new Event<World, []>(this);
+
+
 	public size = new Vector2();
 	public cellsize = new Vector2(20, 20);
 
 	public all_nodes: WorldItem[] = [];
-	public active_nodes: WorldItem[] = [];
 
 
 	public enter_date: Date = new Date();
@@ -22,16 +24,15 @@ export class World extends Node {
 	constructor() {
 		super();
 
-		this['@child_entered_tree'].on(s => s instanceof WorldItem && this.addObject(s));
-		this['@child_exiting_tree'].on(s => s instanceof WorldItem && this.removeObject(s));
+		this['@child_entered_tree'].on(s => s instanceof WorldItem && this.addItem(s));
+		this['@child_exiting_tree'].on(s => s instanceof WorldItem && this.removeItem(s));
 	}
-
 
 	public getObjectCellUp(target: Vector2): WorldItem | null{
 		return this.all_nodes.find(i => i.cellpos.isSame(target)) || null;
 	}
 
-	public addObject(o: WorldItem): void {
+	public addItem(o: WorldItem): void {
 		//@ts-ignore friend
 		if(o._isInTree) return;
 
@@ -50,7 +51,7 @@ export class World extends Node {
 		o.visible = true;
 	}
 
-	public removeObject(o: WorldItem): void {
+	public removeItem(o: WorldItem): void {
 		//@ts-ignore
 		if(!o._isInTree) return;
 
@@ -80,28 +81,6 @@ export class World extends Node {
 		}
 
 		this.date.setSeconds(this.date.getSeconds() + 3);
-
-		return true;
-	}
-
-	public hasPickUp(node1: WorldItem, node2: WorldItem): boolean {
-		if(node1 === node2) throw new Error('node1 === node2');
-
-		if(node1.inHands) return false;
-
-		if(this.getDistance(node1, node2) > 2) return false;
-
-		if(!node2.isPickupable) return false;
-
-		return true;
-	}
-
-	public hasPut(node1: WorldItem, target: Vector2): boolean {
-		if(node1.cellpos.getDistance(target) > 2) return false;
-
-		// if(!node2.isPickupable) return true;
-
-		if(this.all_nodes.some(i => i.cellpos.isSame(target))) return false;
 
 		return true;
 	}
@@ -146,45 +125,6 @@ export class WorldItem extends Node2D {
 	}
 
 	protected _world: World | null = null;
-
-	public isPickupable: boolean = false;
-	public inHands: WorldItem | null = null;
-
-
-	private _onselfpickup(picker: WorldItem) {
-		this._world!.removeObject(this);
-
-		// picker.pocket
-		picker.inHands = this;
-	}
-
-	private _onselfput(picker: WorldItem, target: Vector2) {
-		this.cellpos.set(target);
-
-		picker._world!.addObject(this);
-
-		// picker.pocket
-		picker.inHands = null;
-	}
-
-	public tryPutfromHandsTo(dir: Vector2): boolean {
-		if(!this.inHands) return false;
-
-		const target = this.cellpos.buf().add(dir);
-		const has = this._world!.hasPut(this, target);
-
-		if(has) this.inHands._onselfput(this, target);
-
-		return has;
-	}
-
-	public tryPickup(o: WorldItem): boolean {
-		const has = this._world!.hasPickUp(this, o);
-
-		if(has) o._onselfpickup(this);
-
-		return has;
-	}
 
 
 	public tryMoveTo(target: Vector2): boolean {
