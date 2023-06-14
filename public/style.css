@@ -23,9 +23,21 @@ canvas-layers {
 .editor {
 	width: 90%;
 	height: 100%;
-	opacity: 0.1;
+	opacity: 0.2;
 	transition: opacity 200ms ease-out;
 }
 .editor:hover {
 	opacity: 1;
+}
+
+.start {
+	position: fixed;
+	top: 0px;
+	right: 0px;
+	padding: 10px;
+	margin: 10px;
+	color: #eeeeee;
+	background: #223333;
+	border: 1px solid #777777;
+	border-radius: 5px;
 }

@@ -1,11 +1,24 @@
-while(true) {
-	if(energy < 2) yield* idle(2);
+/*
+[alpha-v1.0.1]
 
-	if(isBudoff) yield* budoff();
+Программирование генома клеток
+Все новые клетки получают новый геном
+Старые клетки остаются без изменений
+
+console.log для дебага
+*/
+
+while(true) {
+	if(energy < 15) {
+		yield* idle(2);
+		continue;
+	}
 
 	yield* lookAround();
 
 	if(around.forward) yield* turnRight(2);
 
 	yield* moveForward();
+
+	if(energy > 15 && isBudoff) yield* budoff();
 }

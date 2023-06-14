@@ -16,16 +16,22 @@ type GGG = Generator<
 , void, any>;
 
 
-const delay = (cb: Function, t: number) => setTimeout(cb, t);
+const delay = (cb: Function, t: number) => new Promise<void>(res => setTimeout(() => {
+	cb();
+	res();
+}, t));
 
 
 export class ProgramsExecutor extends EventDispatcher {
+	public '@start' = new Event<ProgramsExecutor, []>(this);
+	public '@stop' = new Event<ProgramsExecutor, []>(this);
+
+
 	public j: number = 0;
-	public l: number = 100;
+	public l: number = 1000;
 	public t: number = 1000;
 
-	public arr: { o: ProgrammableCell, gen: () => GGG }[] = [];
-	public arrgame: { o: ProgrammableCell, gen: GGG }[] = [];
+	public arr: { o: ProgrammableCell, gen: GGG }[] = [];
 
 	public isStarted: boolean = false;
 
@@ -33,56 +39,51 @@ export class ProgramsExecutor extends EventDispatcher {
 		if(this.isStarted) return;
 		this.isStarted = true;
 
-		for(let i = 0; i < this.arr.length; i++) this.arrgame.push({ o: this.arr[i].o, gen: this.arr[i].gen.call(null) });
+		const tick = () => {
+			const arr = this.arr;
 
-		delay(this.tick, this.t);
-	}
-
-	public tick = (): void => {
-		this.isStarted = false;
-
-		const arr = this.arrgame;
-
-		if(!(this.j < this.l)) return;
-
-		for(let i = 0; i < arr.length; i++) {
-			const { value, done } = arr[i].gen.next();
-
-			if(done) {
-				arr.splice(i, 1);
-				continue;
+			if(!arr.length || !this.isStarted) {
+				this['@stop'].emit();
+				return;
 			}
 
-			switch(value) {
-				case 'bud off': arr[i].o.apiBudoff(); break;
-				case 'look around': arr[i].o.apiLookAround(); break;
-				case 'idle': arr[i].o.apiIdle(); break;
-				case 'move forward': arr[i].o.apiMoveForward(); break;
-				case 'turn left': arr[i].o.apiTurnLeft(); break;
-				case 'turn right': arr[i].o.apiTurnRight(); break;
+			if(!(this.j < this.l)) return;
+
+			for(let i = 0; i < arr.length; i++) {
+				const { value, done } = arr[i].gen.next();
+
+				if(done) {
+					arr.splice(i, 1);
+					continue;
+				}
+
+				switch(value) {
+					case 'bud off': arr[i].o.apiBudoff(); break;
+					case 'look around': arr[i].o.apiLookAround(); break;
+					case 'idle': arr[i].o.apiIdle(); break;
+					case 'move forward': arr[i].o.apiMoveForward(); break;
+					case 'turn left': arr[i].o.apiTurnLeft(); break;
+					case 'turn right': arr[i].o.apiTurnRight(); break;
+				}
 			}
+
+			this.j += 1;
+
+			delay(tick, this.t);
 		}
 
-		this.j += 1;
+		this['@start'].emit();
 
-		if(!arr.length) return;
-
-		this.isStarted = true;
-
-		delay(this.tick, this.t);
+		delay(tick, this.t);
 	}
 
+	public stop(): void { this.isStarted = false; }
 
-	public add(o: ProgrammableCell, code: string, inited: boolean = false): void {
-		if(inited) {
-			this.arrgame.push({
-				o, gen: codeShell<() => GGG>(code, o._api, { generator: true, source: `gen[${this.arrgame.length}]` }).call(null)
-			});
-		} else {
-			this.arr.push({
-				o, gen: codeShell<() => GGG>(code, o._api, { generator: true, source: `gen[${this.arr.length}]` })
-			});
-		}
+
+	public add(o: ProgrammableCell, code: string): void {
+		this.arr.push({
+			o, gen: codeShell<() => GGG>(code, o._api, { generator: true, source: `gen[${this.arr.length}]` }).call(null)
+		});
 	}
 }
 
@@ -92,7 +93,7 @@ export class ProgrammableCell extends WorldItem {
 
 	public _api = (() => {
 		const self = this;
-		
+
 		const around = new Array(8).fill('');
 		Object.defineProperty(around, 'forward', {
 			get() { return (this as any)[self.celldir] as string; },
@@ -116,7 +117,7 @@ export class ProgrammableCell extends WorldItem {
 
 			*lookAround() { yield 'look around'; },
 
-			*budoff() { yield 'bud off'; }		
+			*budoff() { yield 'bud off'; }
 		};
 	})();
 

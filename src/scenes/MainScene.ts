@@ -166,22 +166,22 @@ export class MainScene extends Node {
 		// console.log(tilemap);
 
 
-		const addProgrammableCellToWorld = (code: string, v: Vector2, dir: number, inited: boolean = false) => {
+		const addProgrammableCellToWorld = (code: string, v: Vector2, dir: number) => {
 			const o = new ProgrammableCell();
 			o.name += Math.random();
 			o.isPickupable = false;
 
-			this.programs_executor.add(o, code, inited);
-
-			o.init().then(() => {
+			return o.init().then(() => {
 				o.cellpos.set(v);
 				o.celldir = dir;
 
+				this.$world.addChild(o);
+
 				o.on('api:budoff', o => {
-					addProgrammableCellToWorld(this.editor.getValue(), o.cellpos || new Vector2(8, 8), o.celldir+4, true);
+					addProgrammableCellToWorld(this.editor.getValue(), o.cellpos.buf(), o.celldir+4);
 				});
 
-				this.$world.addChild(o);
+				this.programs_executor.add(o, code);
 			});
 		}
 
@@ -208,18 +208,29 @@ export class MainScene extends Node {
 
 		this.programs_executor.t = 500;
 
-		canvas.onclick = () => {
+		const $btnStart = document.createElement('button');
+		$btnStart.className = 'start';
+		$btnStart.textContent = 'start';
+		canvas.append($btnStart);
+
+		$btnStart.onclick = () => {
 			if(!this.programs_executor.isStarted) {
-				addProgrammableCellToWorld(
-					this.editor.getValue(),
-					this.programs_executor.arr[0]?.o.cellpos || new Vector2(8, 8),
-					this.programs_executor.arr[0]?.o.celldir+4 || 2
-				);
-				this.programs_executor.start();
+				addProgrammableCellToWorld(this.editor.getValue(), new Vector2(8, 8), 2).then(() => {
+					this.programs_executor.start();
+				});
 			}
 
-			canvas.onclick = null;
+			$btnStart.onclick = () => this.programs_executor[this.programs_executor.isStarted ? 'stop' : 'start']();
 		};
+
+		this.programs_executor.on('start', () => {
+			$btnStart.textContent = 'paused';
+			this.editor.updateOptions({ readOnly: true });
+		});
+		this.programs_executor.on('stop', () => {
+			$btnStart.textContent = 'resume';
+			this.editor.updateOptions({ readOnly: false });
+		});
 	}
 
 	protected _process(this: MainScene, dt: number): void {
